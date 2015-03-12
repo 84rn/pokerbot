@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include "process_utils.h"
+#include "basic_log.h"
+
+static HWND h;
 
 int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORMATION *pi)
 {
@@ -18,6 +21,9 @@ int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORM
 	_tcscat(cmd_l, _T(" "));
 	_tcscat(cmd_l, cmd);
 
+	if (name = _tcsrchr(prog, _T('\\')))
+		++name;
+
 	/* Start the child process */
 	if (!CreateProcess(prog,			// Module name (use command line)
 		cmd_l,							// Command line
@@ -35,9 +41,6 @@ int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORM
 		ret = 1;
 	}
 
-	if (name = _tcsrchr(prog, _T('\\')))
-		++name;	
-
 	if (!ret)	
 		log(_T("Process %s started\n\t-> PID[%d] THREAD[%d]\n"), (name != NULL ? name : prog), pi->dwProcessId, pi->dwThreadId);
 		
@@ -46,4 +49,29 @@ int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORM
 	cmd_l = NULL;
 
 	return ret;
+}
+
+BOOL CALLBACK get_process_main_wnd_callback(HWND hwnd, LPARAM lParam)
+{
+	wnd_id *id = (wnd_id *)lParam;
+
+	DWORD org_pid = id->pid;
+	DWORD pid;
+
+	GetWindowThreadProcessId(hwnd, &pid);
+
+	if (pid == org_pid)
+	{
+		_TCHAR t[1000];
+		id->hwnd = hwnd;
+		GetWindowText(hwnd, t, 1000);
+		log(_T("Found window: %s [%p]\n"), t, hwnd);
+	}
+
+	return TRUE;
+}
+
+BOOL get_process_main_wnd(wnd_id *id)
+{
+	return EnumWindows(get_process_main_wnd_callback, (LPARAM)id);
 }
