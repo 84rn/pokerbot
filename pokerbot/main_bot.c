@@ -162,7 +162,7 @@ BOOL CALLBACK main_bot_enum_children(HWND hwnd, LPARAM lParam)
 int main_bot_login(_TCHAR *u, _TCHAR *p)
 {
 	int ret = 0;
-	int capture_retry = 0;
+	int retry = 0;
 	HWND h_process = NULL;
 
 	log_mbot(_T("Trying to log in..."));
@@ -170,14 +170,9 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	log_mbot(_T("Login window found"));
 
 	/* Attach to process to find capture window */
-	h_process = NULL;
-	capture_retry = 0;
-	while (!h_process &&  capture_retry++ < 10)
-	{
+	for (h_process = NULL, retry = 0; !h_process && retry++ < 10; Sleep(100))
 		SendMessage(wnd_manager_get_hwnd(), WM_GET_PROCESS_CAPTURE, (WPARAM)&h_process, 0);
-		Sleep(100);
-	}
-
+	
 	if (h_process)
 	{
 		log_mbot("Killing the tricky capture window");
@@ -198,6 +193,7 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	h_process = main_bot.selected_window;
 
 	send_click(h_process, 109, 65);
+	Sleep(700);
 	send_ctrl_char(h_process, 'A');
 	send_vkey(h_process, VK_DELETE);
 
@@ -216,22 +212,26 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	Sleep(100);
 	send_click(h_process, 100, 140);
 
+	/* If not logged in, pass or user are wrong, quit */
+	for (retry = 0; !main_bot_select_parent_title(_T("Account")) && retry++ < 10; Sleep(100));
+	if (retry > 10)
+	{
+		log_mbot(_T("Wrong user/pass. Quitting."));
+		return 1;
+	}
+
 	/* Kill the popups */
 	log_mbot(_T("Killing post login windows"));
 	_TCHAR *windows[] = { "EE-RENTRY", "postLogin", 0 };
 
-	while (main_bot_select_parent_title_multi(windows));
+	for (; main_bot_select_parent_title_multi(windows); Sleep(50));
+	
 	SendMessage(main_bot.selected_window, WM_CLOSE, 0, 0);
 
 	/* Attach to process to find capture window */
-	h_process = NULL;
-	capture_retry = 0;
-	while (!h_process && capture_retry++ < 10)
-	{
+	for (h_process = NULL, retry = 0; !h_process && retry++ < 10; Sleep(100))
 		SendMessage(wnd_manager_get_hwnd(), WM_GET_PROCESS_CAPTURE, (WPARAM)&h_process, 0);
-		Sleep(100);
-	}
-
+	
 	if (h_process)
 	{
 		log_mbot("Focusing the hall");
