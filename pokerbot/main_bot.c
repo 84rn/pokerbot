@@ -148,16 +148,6 @@ int main_bot_start_app()
 		return 1;
 	}
 }
-BOOL CALLBACK main_bot_enum_children(HWND hwnd, LPARAM lParam)
-{
-	_TCHAR t[500];
-	_TCHAR s[500];
-
-	GetClassName(hwnd, t, 500);
-	GetWindowText(hwnd, s, 500);
-	log_msg(_T("Class: %s | Name: %s"), t, s);
-	return TRUE;
-}
 
 int main_bot_login(_TCHAR *u, _TCHAR *p)
 {
@@ -166,7 +156,7 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	HWND h_process = NULL;
 
 	log_mbot(_T("Trying to log in..."));
-	while (main_bot_select_parent_title(_T("Account")));
+	for (; main_bot_select_parent_title(_T("Account")); Sleep(50));	
 	log_mbot(_T("Login window found"));
 
 	/* Attach to process to find capture window */
