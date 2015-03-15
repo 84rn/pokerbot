@@ -27,7 +27,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v120</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -67,6 +67,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -77,20 +79,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="basic_log.c" />
-    <ClCompile Include="bot_utils.c" />
     <ClCompile Include="main.c" />
-    <ClCompile Include="parent_bot.c" />
+    <ClCompile Include="main_bot.c" />
     <ClCompile Include="process_utils.c" />
     <ClCompile Include="prog_opts.c" />
+    <ClCompile Include="send_input.c" />
     <ClCompile Include="thread_utils.c" />
     <ClCompile Include="wnd_manager.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="basic_log.h" />
-    <ClInclude Include="bot_utils.h" />
-    <ClInclude Include="parent_bot.h" />
+    <ClInclude Include="main_bot.h" />
     <ClInclude Include="process_utils.h" />
     <ClInclude Include="prog_opts.h" />
+    <ClInclude Include="send_input.h" />
     <ClInclude Include="thread_utils.h" />
     <ClInclude Include="wnd_manager.h" />
   </ItemGroup>

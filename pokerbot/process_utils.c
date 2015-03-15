@@ -4,25 +4,34 @@
 
 static HWND h;
 
-int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORMATION *pi)
+int process_start_app(_TCHAR *prog, _TCHAR *cmd, process_data *pi)
 {
 	int ret = 0;
 	_TCHAR *name, *cmd_l;
+	_TCHAR *path = NULL;
 
-	if (!si || !pi)
+	if (!pi)
 	{
-		_ftprintf(stderr, "Error at start_app_process() - empty info pointers\n");
+		log_err(_T("start_app_process() - empty info pointers"));
 		return 1;
 	}
+	pi->s_info.cb = sizeof(STARTUPINFO);
 
 	/* Allocate memory because cmd_l can be changed by CreateProcess() */
-	cmd_l = malloc(_tcslen(prog) + 1 + _tcslen(cmd) + 1);
+	cmd_l = malloc((_tcslen(prog) + 1 + _tcslen(cmd) + 1) * sizeof(_TCHAR));
 	_tcscpy(cmd_l, prog);
+
+	if (name = _tcsrchr(cmd_l, _T('\\')))
+	{
+		path = malloc((name - cmd_l + 1) * sizeof(_TCHAR));
+		_tcsncpy(path, cmd_l, name - cmd_l);
+		path[name - cmd_l] = '\0';
+		name++;
+	}
+		
 	_tcscat(cmd_l, _T(" "));
 	_tcscat(cmd_l, cmd);
 
-	if (name = _tcsrchr(prog, _T('\\')))
-		++name;
 
 	/* Start the child process */
 	if (!CreateProcess(prog,			// Module name (use command line)
@@ -32,21 +41,25 @@ int start_app_process(_TCHAR *prog, _TCHAR *cmd, STARTUPINFO *si, PROCESS_INFORM
 		FALSE,							// Set handle inheritance to FALSE
 		0,								// No creation flags
 		NULL,							// Use parent's environment block
-		NULL,							// Use parent's starting directory 
-		si,								// Pointer to STARTUPINFO structure
-		pi)								// Pointer to PROCESS_INFORMATION structure
+		path,							// Use parent's starting directory 
+		&pi->s_info,					// Pointer to STARTUPINFO structure
+		&pi->p_info)					// Pointer to PROCESS_INFORMATION structure		
 		)
 	{
-		_ftprintf(stderr, _T("Error at start_app_process() - CreateProcess failed [(%d)]\n"), GetLastError());
+		log_err(_T("start_app_process() - CreateProcess failed [(%d)]"), GetLastError());
 		ret = 1;
 	}
 
-	if (!ret)	
-		log(_T("Process %s started\n\t-> PID[%d] THREAD[%d]\n"), (name != NULL ? name : prog), pi->dwProcessId, pi->dwThreadId);
-		
+	if (!ret)
+		log_dbg(_T("Process %s started -> PID[%#x] THR[%#x]"), (!name ? prog : name), pi->p_info.dwProcessId, pi->p_info.dwThreadId);
+
 	if (cmd_l)
 		free(cmd_l);
 	cmd_l = NULL;
+
+	if (path)
+		free(path);
+	path = NULL;
 
 	return ret;
 }
@@ -65,7 +78,7 @@ BOOL CALLBACK get_process_main_wnd_callback(HWND hwnd, LPARAM lParam)
 		_TCHAR t[1000];
 		id->hwnd = hwnd;
 		GetWindowText(hwnd, t, 1000);
-		log(_T("Found window: %s [%p]\n"), t, hwnd);
+		log_dbg(_T("Found window: %s [%p]\n"), t, hwnd);
 	}
 
 	return TRUE;

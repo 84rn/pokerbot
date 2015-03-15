@@ -24,19 +24,19 @@
     <ClCompile Include="basic_log.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="bot_utils.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="prog_opts.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="wnd_manager.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="parent_bot.c">
+    <ClCompile Include="thread_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="thread_utils.c">
+    <ClCompile Include="main_bot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="send_input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -47,19 +47,19 @@
     <ClInclude Include="basic_log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="bot_utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="prog_opts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="wnd_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="parent_bot.h">
+    <ClInclude Include="thread_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="thread_utils.h">
+    <ClInclude Include="main_bot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="send_input.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

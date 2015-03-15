@@ -3,15 +3,21 @@
 static char enable_log = 1;
 static HANDLE mutex;
 
+void log_base(_TCHAR *l, ...);
+
 HANDLE log_get_mutex()
 {
 	return mutex;
 }
 
-void log_init()
+int log_init()
 {
+	int ret = 0;
+
 	if (!mutex)
-		CreateMutex(NULL, FALSE, "log_mutex");
+		ret = ((mutex = CreateMutex(NULL, FALSE, "log_mutex")) ? 0 : GetLastError());
+
+	return ret;
 }
 
 void log_cleanup()
@@ -22,26 +28,27 @@ void log_cleanup()
 void log_msg(_TCHAR *l, ...)
 {
 	if (enable_log)
-	{	
-		WaitForSingleObject(mutex, INFINITE);
-		_tprintf("> ");
+	{
 		va_list vl;
 		va_start(vl, l);
-		log(l, vl);
-		va_end(vl);
+		WaitForSingleObject(mutex, INFINITE);
+		_tprintf(_T("> "));		
+		log_base(l, vl);
 		ReleaseMutex(mutex);
+		va_end(vl);
 	}
 }
 
-void log_error(_TCHAR *l, ...)
+void log_err(_TCHAR *l, ...)
 {
-		WaitForSingleObject(mutex, INFINITE);
-		_tprintf("Error: ");
-		va_list vl;
-		va_start(vl, l);
-		log(l, vl);
-		va_end(vl);	
-		ReleaseMutex(mutex);
+	va_list vl;
+	va_start(vl, l);
+	WaitForSingleObject(mutex, INFINITE);
+	_ftprintf(stderr, "Error: ");	
+	_vftprintf(stderr, l, vl);
+	_tprintf(_T("\n"));
+	ReleaseMutex(mutex);
+	va_end(vl);
 }
 
 void log_dbg(_TCHAR *l, ...)
@@ -49,23 +56,17 @@ void log_dbg(_TCHAR *l, ...)
 	if (enable_log)
 	{
 		WaitForSingleObject(mutex, INFINITE);
-		_tprintf("DEBUG: ");
 		va_list vl;
 		va_start(vl, l);
-		log(l, vl);
+		_tprintf(_T("DEBUG: "));
+		log_base(l, vl);
 		va_end(vl);
 		ReleaseMutex(mutex);
 	}
 }
 
-void log(_TCHAR *l, ...)
+void log_base(_TCHAR *l, va_list list)
 {
-	
-
-	va_list vl;
-	va_start(vl, l);
-	_vtprintf(l, vl);
-	va_end(vl);
-	
-	
+	_vtprintf(l, list);
+	_tprintf(_T("\n"));	
 }
