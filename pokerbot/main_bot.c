@@ -73,7 +73,7 @@ DWORD WINAPI main_bot_proc(LPVOID param)
 	SetEvent(main_bot.thread.event.idle);
 
 	/* Say hello */
-	log_mbot("Hello, this is Chappy!\r\n");
+	log_mbot("Hello, this is Chappie!\r\n");
 
 	/* Dispatch main process thread */
 	if (ret = main_bot_start_app())
