@@ -16,8 +16,11 @@ static struct s_main_bot
 
 DWORD WINAPI main_bot_proc(LPVOID param);
 int main_bot_start_app();
-BOOL main_bot_find_wnd_title(_TCHAR *title);
-int main_bot_find_wnd_title_multi(_TCHAR **titles);
+int main_bot_select_parent_title(_TCHAR *title);
+int main_bot_select_parent_title_multi(_TCHAR **titles);
+int main_bot_select_child_title(HWND parent, _TCHAR *title);
+int main_bot_select_child_title_multi(HWND parent, _TCHAR **titles);
+
 int main_bot_login(_TCHAR *u, _TCHAR *p);
 
 void log_mbot(_TCHAR *log);
@@ -163,7 +166,7 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	HWND h_process = NULL;
 
 	log_mbot(_T("Trying to log in..."));
-	while (main_bot_find_wnd_title(_T("Account")));
+	while (main_bot_select_parent_title(_T("Account")));
 	log_mbot(_T("Login window found"));
 
 	/* Attach to process to find capture window */
@@ -184,25 +187,15 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	}
 
 	/* Send input for login*/
-	h_process = FindWindowEx(main_bot.selected_window, NULL, "CefBrowserWindow", NULL);
-	if (h_process)
-	{
-		/* Find the embedded browser */
-		h_process = FindWindowEx(h_process, NULL, "WebViewHost", NULL);
-
-		if (h_process)
-			log_mbot("Got the login browser window");
-		else
-			ret = 1;
-	}
+	if (!main_bot_select_child_class(main_bot.selected_window, "WebViewHost"))
+		log_mbot("Got the login browser window");
 	else
-		ret = 1;
-
-	if (ret)
 	{
 		log_mbot("Couldn't find the login child window");
 		return 1;
 	}
+
+	h_process = main_bot.selected_window;
 
 	send_click(h_process, 109, 65);
 	send_ctrl_char(h_process, 'A');
@@ -221,13 +214,13 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 
 	/* Push the button! */
 	Sleep(100);
-	send_click(h_process, 100, 140); 
+	send_click(h_process, 100, 140);
 
 	/* Kill the popups */
 	log_mbot(_T("Killing post login windows"));
 	_TCHAR *windows[] = { "EE-RENTRY", "postLogin", 0 };
 
-	while (main_bot_find_wnd_title_multi(windows));
+	while (main_bot_select_parent_title_multi(windows));
 	SendMessage(main_bot.selected_window, WM_CLOSE, 0, 0);
 
 	/* Attach to process to find capture window */
@@ -250,10 +243,9 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	return 0;
 }
 
-
-BOOL CALLBACK get_process_wnd_title_callback(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK get_process_wnd_class_callback(HWND hwnd, LPARAM lParam)
 {
-	_TCHAR *title = (_TCHAR *)lParam;
+	_TCHAR *class = (_TCHAR *)lParam;
 
 	DWORD org_pid = main_bot.app.p_info.dwProcessId;
 	DWORD pid;
@@ -263,12 +255,37 @@ BOOL CALLBACK get_process_wnd_title_callback(HWND hwnd, LPARAM lParam)
 	if (pid == org_pid)
 	{
 		_TCHAR t[500];
-		GetWindowText(hwnd, t, 500);
+		GetClassName(hwnd, t, 500);
+
+		if (!_tcsncmp(class, t, 5))
+		{
+			main_bot.selected_window = hwnd;
+			log_dbg(_T("Found window class: %s [%p]"), t, hwnd);
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+BOOL CALLBACK get_process_wnd_title_callback(HWND hwnd, LPARAM lParam)
+{
+	_TCHAR *title = (_TCHAR *)lParam;
+
+	DWORD org_pid = main_bot.app.p_info.dwProcessId;
+	DWORD pid;
+	
+	GetWindowThreadProcessId(hwnd, &pid);
+
+	if (pid == org_pid)
+	{		
+		_TCHAR t[500];
+		GetWindowText(hwnd, t, 500);	
 
 		if (!_tcsncmp(title, t, 5))
 		{
 			main_bot.selected_window = hwnd;
-			log_dbg(_T("Found window: %s [%p]"), t, hwnd);
+			log_dbg(_T("Found window title: %s [%p]"), t, hwnd);
 			return FALSE;
 		}
 	}
@@ -294,7 +311,7 @@ BOOL CALLBACK get_process_wnd_title_multi_callback(HWND hwnd, LPARAM lParam)
 			if (!_tcsncmp(*temp++, t, 5))
 			{
 				main_bot.selected_window = hwnd;
-				log_dbg(_T("Found window: %s [%p]"), t, hwnd);
+				log_dbg(_T("Found first window title: %s [%p]"), t, hwnd);
 				return FALSE;
 			}
 		}
@@ -303,13 +320,28 @@ BOOL CALLBACK get_process_wnd_title_multi_callback(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-int main_bot_find_wnd_title(_TCHAR *title)
+int main_bot_select_parent_title(_TCHAR *title)
 {
 	return EnumWindows(get_process_wnd_title_callback, (LPARAM)title);
 }
 
-int main_bot_find_wnd_title_multi(_TCHAR **titles)
+int main_bot_select_parent_title_multi(_TCHAR **titles)
 {
 	return EnumWindows(get_process_wnd_title_multi_callback, (LPARAM)titles);
+}
+
+int main_bot_select_child_title(HWND parent, _TCHAR *title)
+{
+	return EnumChildWindows(parent, get_process_wnd_title_callback, (LPARAM)title);
+}
+
+int main_bot_select_child_title_multi(HWND parent, _TCHAR **titles)
+{
+	return EnumChildWindows(parent, get_process_wnd_title_multi_callback, (LPARAM)titles);
+}
+
+int main_bot_select_child_class(HWND parent, _TCHAR *class)
+{
+	return EnumChildWindows(parent, get_process_wnd_class_callback, (LPARAM)class);
 }
 
