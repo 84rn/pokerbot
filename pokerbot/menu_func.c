@@ -223,7 +223,7 @@ int menu_select_item(menu_t **menu, int ID)
 		/* Deselect all */
 		lv_item.iItem = -1;
 		lv_item.mask = LVIF_STATE;
-		lv_item.stateMask = LVIS_SELECTED;
+		lv_item.stateMask = LVIS_SELECTED | LVIS_FOCUSED;
 		lv_item.state = 0;
 
 		address = VirtualAllocEx(main_bot_get_app()->p_info.hProcess, NULL, sizeof(LVITEM),
@@ -244,8 +244,8 @@ int menu_select_item(menu_t **menu, int ID)
 		/* Select one */
 		lv_item.iItem = ID;
 		lv_item.mask = LVIF_STATE;
-		lv_item.stateMask = LVIS_SELECTED;
-		lv_item.state = LVIS_SELECTED;
+		lv_item.stateMask = LVIS_SELECTED | LVIS_FOCUSED;
+		lv_item.state = LVIS_SELECTED | LVIS_FOCUSED;
 
 		if (!WriteProcessMemory(main_bot_get_app()->p_info.hProcess, address, &lv_item, sizeof(lv_item), NULL))
 		{

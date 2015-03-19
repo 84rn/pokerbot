@@ -352,7 +352,7 @@ int main_bot_build_menu_tree()
 	HWND lobby, seated, child;
 	menu_node_t *node;
 	menu_t *menu = NULL;
-
+	int i = 0;
 	main_bot_select_wnd_by_title(_T("bwin.com"));
 	if (!main_bot.selected_window)
 	{
@@ -438,6 +438,19 @@ int main_bot_build_menu_tree()
 	M_SELECT(NID_PPLAYMONEY_GAMENAME, IX_PPNL_HOLDEM);
 	M_SELECT(NID_PPLAYMONEY_STAKES, 0);
 	M_SELECT(NID_PPLAYMONEY_SEATS, 0);
-	M_SELECT(NID_PPLAYMONEY_TABLES, 15);
+
+	SendMessage(node->menu->parent, WM_ACTIVATE, WA_CLICKACTIVE, 0);
+
+	for (i = 30; i < 34; i++)
+	{
+
+		M_SELECT(NID_PPLAYMONEY_TABLES, i);		
+
+		PostMessage(node->menu->parent, WM_KEYDOWN, VK_RETURN, 0);
+		SendMessage(node->menu->parent, WM_KEYUP, VK_RETURN, 0);
+		Sleep(200);
+
+	}
+	
 	return 0;
 }
