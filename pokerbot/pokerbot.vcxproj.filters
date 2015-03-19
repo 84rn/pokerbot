@@ -39,6 +39,12 @@
     <ClCompile Include="send_input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="menu_func.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wnd_func.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="process_utils.h">
@@ -60,6 +66,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="send_input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="menu_func.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wnd_func.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

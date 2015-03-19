@@ -267,7 +267,7 @@ LRESULT CALLBACK wnd_manager_wndproc(HWND hwnd, UINT message, WPARAM w_param, LP
 		p_handle = (HWND*)w_param;
 		*p_handle = handle;
 		ret = AttachThreadInput(GetCurrentThreadId(), main_bot_get_app()->p_info.dwThreadId, FALSE);
-		break;
+		break;		
 	default:
 		return DefWindowProc(hwnd, message, w_param, l_param);
 	}

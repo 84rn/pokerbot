@@ -3,8 +3,8 @@
 
 void send_click(HWND hwnd, int x, int y)
 {
-	PostMessage(hwnd, WM_LBUTTONDOWN, 0, MAKELPARAM(x, y));
-	PostMessage(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x, y));
+	SendMessage(hwnd, WM_LBUTTONDOWN, 0, MAKELPARAM(x, y));
+	SendMessage(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x, y));
 }
 
 

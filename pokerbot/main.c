@@ -24,7 +24,7 @@ int _tmain(int argc, _TCHAR *argv[])
 	if (ret = main_bot_start())
 		return ret;
 
-//	main_bot_terminate();
+	main_bot_terminate();
 
 	WaitForSingleObject(main_bot_get_thread()->handle, INFINITE);
 

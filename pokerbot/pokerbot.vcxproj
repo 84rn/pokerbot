@@ -81,19 +81,23 @@
     <ClCompile Include="basic_log.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="main_bot.c" />
+    <ClCompile Include="menu_func.c" />
     <ClCompile Include="process_utils.c" />
     <ClCompile Include="prog_opts.c" />
     <ClCompile Include="send_input.c" />
     <ClCompile Include="thread_utils.c" />
+    <ClCompile Include="wnd_func.c" />
     <ClCompile Include="wnd_manager.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="basic_log.h" />
     <ClInclude Include="main_bot.h" />
+    <ClInclude Include="menu_func.h" />
     <ClInclude Include="process_utils.h" />
     <ClInclude Include="prog_opts.h" />
     <ClInclude Include="send_input.h" />
     <ClInclude Include="thread_utils.h" />
+    <ClInclude Include="wnd_func.h" />
     <ClInclude Include="wnd_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

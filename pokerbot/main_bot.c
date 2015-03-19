@@ -1,4 +1,6 @@
 #include <Windows.h>
+#include <CommCtrl.h>
+#include <string.h>
 #include "main_bot.h"
 #include "wnd_manager.h"
 #include "prog_opts.h"
@@ -6,20 +8,28 @@
 #include "thread_utils.h"
 #include "basic_log.h"
 #include "send_input.h"
+#include "menu_func.h"
+#include "wnd_func.h"
+
+#define M_SELECT(x, y) m_select_menu_path(main_bot.main_menu, (x), (y))
 
 static struct s_main_bot
 {
 	s_thread thread;
 	process_data app;
 	HWND selected_window;
+	menu_node_t *main_menu;
 } main_bot;
 
 DWORD WINAPI main_bot_proc(LPVOID param);
 int main_bot_start_app();
-int main_bot_select_parent_title(_TCHAR *title);
-int main_bot_select_parent_title_multi(_TCHAR **titles);
-int main_bot_select_child_title(HWND parent, _TCHAR *title);
-int main_bot_select_child_title_multi(HWND parent, _TCHAR **titles);
+int main_bot_select_wnd_by_title(_TCHAR *title);
+int main_bot_select_wnd_by_title_multi(_TCHAR **titles);
+int main_bot_select_child_by_title(HWND parent, _TCHAR *title);
+int main_bot_select_child_by_title_multi(HWND parent, _TCHAR **titles);
+int main_bot_build_menu_tree();
+
+int main_bot_select_child_by_class(HWND parent, _TCHAR *);
 
 int main_bot_login(_TCHAR *u, _TCHAR *p);
 
@@ -93,12 +103,18 @@ DWORD WINAPI main_bot_proc(LPVOID param)
 
 	log_mbot("Login succesful!");
 
+	if (ret = main_bot_build_menu_tree())
+	{
+		log_dbg(_T("Could not build menu tree"));
+		return 1;
+	}	
+
 	wait = WaitForSingleObject(wnd_manager_get_thread()->handle, INFINITE);
 
-	log_mbot("Bye!");
+	//log_mbot("Bye!");
 
-	wnd_manager_terminate();
-	WaitForSingleObject(wnd_manager_get_thread()->handle, INFINITE);
+	//wnd_manager_terminate();
+	//WaitForSingleObject(wnd_manager_get_thread()->handle, INFINITE);
 
 	wnd_manager_cleanup();
 
@@ -124,6 +140,8 @@ void main_bot_cleanup()
 {
 	thread_cleanup(&main_bot.thread);
 	main_bot.selected_window = NULL;
+	m_destroy_node(main_bot.main_menu);
+	main_bot.main_menu = NULL;
 }
 
 void log_mbot(_TCHAR *log)
@@ -156,13 +174,13 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	HWND h_process = NULL;
 
 	log_mbot(_T("Trying to log in..."));
-	for (; main_bot_select_parent_title(_T("Account")); Sleep(50));	
+	for (; main_bot_select_wnd_by_title(_T("Account")); Sleep(50));
 	log_mbot(_T("Login window found"));
 
 	/* Attach to process to find capture window */
 	for (h_process = NULL, retry = 0; !h_process && retry++ < 10; Sleep(100))
 		SendMessage(wnd_manager_get_hwnd(), WM_GET_PROCESS_CAPTURE, (WPARAM)&h_process, 0);
-	
+
 	if (h_process)
 	{
 		log_mbot("Killing the tricky capture window");
@@ -171,19 +189,12 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 		send_click(h_process, 10, 10);
 	}
 
-	/* Send input for login*/
-	if (!main_bot_select_child_class(main_bot.selected_window, "WebViewHost"))
-		log_mbot("Got the login browser window");
-	else
-	{
-		log_mbot("Couldn't find the login child window");
-		return 1;
-	}
+	for (; main_bot_select_child_by_class(main_bot.selected_window, _T("WebViewHost")); Sleep(50));
+	log_mbot("Got the login browser window");
 
 	h_process = main_bot.selected_window;
-
-	send_click(h_process, 109, 65);
-	Sleep(700);
+	Sleep(500);
+	send_click(h_process, 110, 65);
 	send_ctrl_char(h_process, 'A');
 	send_vkey(h_process, VK_DELETE);
 
@@ -203,8 +214,8 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	send_click(h_process, 100, 140);
 
 	/* If not logged in, pass or user are wrong, quit */
-	for (retry = 0; !main_bot_select_parent_title(_T("Account")) && retry++ < 10; Sleep(100));
-	if (retry > 10)
+	for (retry = 0; !main_bot_select_wnd_by_title(_T("Account")) && retry++ < 100; Sleep(100));
+	if (retry > 100)
 	{
 		log_mbot(_T("Wrong user/pass. Quitting."));
 		return 1;
@@ -214,14 +225,14 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	log_mbot(_T("Killing post login windows"));
 	_TCHAR *windows[] = { "EE-RENTRY", "postLogin", 0 };
 
-	for (; main_bot_select_parent_title_multi(windows); Sleep(50));
-	
+	for (; main_bot_select_wnd_by_title_multi(windows); Sleep(50));
+
 	SendMessage(main_bot.selected_window, WM_CLOSE, 0, 0);
 
 	/* Attach to process to find capture window */
 	for (h_process = NULL, retry = 0; !h_process && retry++ < 10; Sleep(100))
 		SendMessage(wnd_manager_get_hwnd(), WM_GET_PROCESS_CAPTURE, (WPARAM)&h_process, 0);
-	
+
 	if (h_process)
 	{
 		log_mbot("Focusing the hall");
@@ -233,7 +244,7 @@ int main_bot_login(_TCHAR *u, _TCHAR *p)
 	return 0;
 }
 
-BOOL CALLBACK get_process_wnd_class_callback(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK get_process_wnd_by_class_callback(HWND hwnd, LPARAM lParam)
 {
 	_TCHAR *class = (_TCHAR *)lParam;
 
@@ -258,19 +269,19 @@ BOOL CALLBACK get_process_wnd_class_callback(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-BOOL CALLBACK get_process_wnd_title_callback(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK get_app_wnd_by_title_callback(HWND hwnd, LPARAM lParam)
 {
 	_TCHAR *title = (_TCHAR *)lParam;
 
 	DWORD org_pid = main_bot.app.p_info.dwProcessId;
 	DWORD pid;
-	
+
 	GetWindowThreadProcessId(hwnd, &pid);
 
 	if (pid == org_pid)
-	{		
+	{
 		_TCHAR t[500];
-		GetWindowText(hwnd, t, 500);	
+		GetWindowText(hwnd, t, 500);
 
 		if (!_tcsncmp(title, t, 5))
 		{
@@ -283,7 +294,7 @@ BOOL CALLBACK get_process_wnd_title_callback(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-BOOL CALLBACK get_process_wnd_title_multi_callback(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK get_app_wnd_by_title_multi_callback(HWND hwnd, LPARAM lParam)
 {
 	DWORD org_pid = main_bot.app.p_info.dwProcessId;
 	DWORD pid;
@@ -310,28 +321,123 @@ BOOL CALLBACK get_process_wnd_title_multi_callback(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-int main_bot_select_parent_title(_TCHAR *title)
+int main_bot_select_wnd_by_title(_TCHAR *title)
 {
-	return EnumWindows(get_process_wnd_title_callback, (LPARAM)title);
+	return EnumWindows(get_app_wnd_by_title_callback, (LPARAM)title);
 }
 
-int main_bot_select_parent_title_multi(_TCHAR **titles)
+int main_bot_select_wnd_by_title_multi(_TCHAR **titles)
 {
-	return EnumWindows(get_process_wnd_title_multi_callback, (LPARAM)titles);
+	return EnumWindows(get_app_wnd_by_title_multi_callback, (LPARAM)titles);
 }
 
-int main_bot_select_child_title(HWND parent, _TCHAR *title)
+int main_bot_select_child_by_title(HWND parent, _TCHAR *title)
 {
-	return EnumChildWindows(parent, get_process_wnd_title_callback, (LPARAM)title);
+	return EnumChildWindows(parent, get_app_wnd_by_title_callback, (LPARAM)title);
 }
 
-int main_bot_select_child_title_multi(HWND parent, _TCHAR **titles)
+int main_bot_select_child_by_title_multi(HWND parent, _TCHAR **titles)
 {
-	return EnumChildWindows(parent, get_process_wnd_title_multi_callback, (LPARAM)titles);
+	return EnumChildWindows(parent, get_app_wnd_by_title_multi_callback, (LPARAM)titles);
 }
 
-int main_bot_select_child_class(HWND parent, _TCHAR *class)
+int main_bot_select_child_by_class(HWND parent, _TCHAR *class)
 {
-	return EnumChildWindows(parent, get_process_wnd_class_callback, (LPARAM)class);
+	return EnumChildWindows(parent, get_process_wnd_by_class_callback, (LPARAM)class);
 }
 
+int main_bot_build_menu_tree()
+{
+	/* Get Main menu*/
+	HWND lobby, seated, child;
+	menu_node_t *node;
+	menu_t *menu = NULL;
+
+	main_bot_select_wnd_by_title(_T("bwin.com"));
+	if (!main_bot.selected_window)
+	{
+		log_err(_T("Could not find lobby window"));
+		return 1;
+	}
+
+	lobby = main_bot.selected_window;
+
+	main_bot.selected_window = wnd_get_child_no(lobby, 6);
+	if (!main_bot.selected_window)
+	{
+		log_err(_T("Could not find main menu window"));
+		return 1;
+	}
+
+	/* Main Menu */
+	menu = menu_build(main_bot.selected_window, TREEVIEW, 0, FALSE);
+	if (!menu)
+	{
+		log_err(_T("Could not build main menu"));
+		return 1;
+	}
+
+	main_bot.main_menu = m_new_node(NID_MAIN_MENU, menu);			
+
+	main_bot_select_child_by_title(lobby, "Seated");
+	if (!main_bot.selected_window)
+	{
+		log_err(_T("Could not find Seated Players window"));
+		return 1;
+	}
+
+	seated = main_bot.selected_window;
+	
+	main_bot_select_child_by_title(main_bot.selected_window, "Casino");
+
+	/* Poker Gametypes */
+	menu = menu_build(main_bot.selected_window, BUTTON, 6, FALSE);
+	node = m_new_node(NID_POKER, menu);
+	m_add_node_to_ID(main_bot.main_menu, NID_MAIN_MENU, node);
+
+	/* Set all the meta nodes */
+	node = m_new_node(NID_POKER_CASINO, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	node = m_new_node(NID_POKER_PLAYMONEY, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	node = m_new_node(NID_POKER_TOURNAMENTS, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	node = m_new_node(NID_POKER_SITNGOS, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	node = m_new_node(NID_POKER_FASTFORWARD, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	node = m_new_node(NID_POKER_CASH, NULL);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER, node);
+	
+	/* Playmoney*/
+	child = wnd_get_child_no(seated, 46);
+
+	main_bot.selected_window = wnd_get_child_no(child, 1);
+	menu = menu_build(main_bot.selected_window, LISTVIEW, 0, FALSE); 
+	node = m_new_node(NID_PPLAYMONEY_GAMENAME, menu);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER_PLAYMONEY, node);
+
+	main_bot.selected_window = wnd_get_child_no(child, 2);
+	menu = menu_build(main_bot.selected_window, LISTVIEW, 0, TRUE);
+	node = m_new_node(NID_PPLAYMONEY_STAKES, menu);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER_PLAYMONEY, node);
+
+	main_bot.selected_window = wnd_get_child_no(child, 3);
+	menu = menu_build(main_bot.selected_window, LISTVIEW, 0, TRUE);
+	node = m_new_node(NID_PPLAYMONEY_SEATS, menu);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER_PLAYMONEY, node);
+
+	/* Tables */
+	main_bot.selected_window = wnd_get_child_no(seated, 9);
+	menu = menu_build(main_bot.selected_window, LISTVIEW, 0, TRUE);
+	node = m_new_node(NID_PPLAYMONEY_TABLES, menu);
+	m_add_node_to_ID(main_bot.main_menu, NID_POKER_PLAYMONEY, node);
+
+	/* TEST */
+	M_SELECT(NID_PPLAYMONEY_GAMENAME, IX_PPPT_OMAHA);
+	M_SELECT(NID_PPLAYMONEY_GAMENAME, IX_PPNL_HOLDEM);
+	M_SELECT(NID_PPLAYMONEY_STAKES, 0);
+	M_SELECT(NID_PPLAYMONEY_SEATS, 0);
+	M_SELECT(NID_PPLAYMONEY_TABLES, 15);
+	return 0;
+}
